@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Math Quiz</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #81ecec;
+        }
+    
+        h1 {
+            color: #333;
+        }
+    
+        #question {
+            font-size: 24px;
+            margin: 20px 0;
+        }
+    
+        .input-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+    
+        #result {
+            font-size: 18px;
+            padding: 5px;
+            margin-bottom: 10px; /* Add margin to separate from the button */
+            width: 200px;
+            text-align: center;
+            height: 30px;
+            border: 1px solid #ccc;
+        }
+    
+        #checkButton {
+            font-size: 18px;
+            padding: 5px 10px;
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+            cursor: pointer;
+            width: 100px;
+            height: 30px;
+        }
+    
+        #checkButton:hover {
+            background-color: #0056b3;
+        }
+    
+        #message {
+            font-size: 20px;
+            margin: 10px 0;
+        }
+        .message-correct {
+            color: green;
+        }
+
+        .message-wrong {
+            color: red;
+        }
+        .fade-out {
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+        }
+        #chart {
+            display: flex;
+            height: 50px;
+            color: #6c5ce7;
+            font-size: 30px;
+            line-height: 50px;
+        }
+
+        #rightChart {
+            background-color: #fab1a0;
+            width: 50%;
+            text-align: center;
+        }
+
+        #wrongChart {
+            background-color: #ffeaa7;
+            width: 50%;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <h1>Math Quiz</h1>
+    <div id="question">
+        <!-- Randomly generated question will be displayed here -->
+    </div>
+    <div class="input-container">
+        <input type="number" id="result" placeholder="Trả lời">
+        <button id="checkButton">Kiểm tra</button>
+    </div>
+    <div id="message"></div>
+
+    <div style="display: flex; justify-content: space-between;">
+        <h1>Đúng</h1>
+        <h1>Sai</h1>
+    </div>
+    <div id="chart">
+        <div id="rightChart"></div>
+        <div id="wrongChart"></div>
+    </div>
+    <script>
+        // Global variables to store the current question
+        let number1, number2, operator;
+        let countRight, countWrong;
+
+        countRight = localStorage.getItem('countRight') || 0;
+        countWrong = localStorage.getItem('countWrong') || 0;
+        countRight = parseInt(countRight);
+        countWrong = parseInt(countWrong);
+
+
+        updateCount();
+        function updateCount() {
+            const rightChartElm = document.querySelector('#rightChart');
+            const wrongChartElm = document.querySelector('#wrongChart');
+            localStorage.setItem('countRight', countRight);
+            localStorage.setItem('countWrong', countWrong);
+
+            if (!countRight && !countWrong) {
+                rightChartElm.style.width = '50%';
+                wrongChartElm.style.width = '50%';
+            } else {
+                let countAll = countRight + countWrong;
+                rightChartElm.style.width = ((countRight / countAll) * 100) + '%';
+                wrongChartElm.style.width = ((countWrong / countAll) * 100) + '%';
+                rightChartElm.innerHTML = countRight;
+                wrongChartElm.innerHTML = countWrong;
+            }
+        }
+        // Function to generate a random number between min and max (inclusive)
+        function getRandomNumber(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+
+        // Function to generate a random operator (+ or -)
+        function getRandomOperator() {
+            const operators = ['+', '-'];
+            return operators[Math.floor(Math.random() * operators.length)];
+        }
+
+        // Function to generate a new question and display it
+        function generateQuestion() {
+            operator = getRandomOperator();
+            if (operator === '+') {
+                number1 = getRandomNumber(1, 9);
+                number2 = getRandomNumber(1, 9);
+            } else if (operator === '-') {
+                number1 = getRandomNumber(9, 20); // Number1 between 9 and 20 (inclusive) for "-"
+                number2 = getRandomNumber(1, number1 - 1); // Number2 smaller than Number1
+            }
+            const questionText = `${number1} ${operator} ${number2} = ?`;
+            document.getElementById('question').textContent = questionText;
+        }
+
+        // Function to send the question, user result, and correctness to the server
+        function sendResultToServer(number1, number2, operator, userResult, correct) {
+            // Create the URL with the question, userResult, and correctness as query parameters
+            const pheptinh= encodeURIComponent(`${number1}${operator}${number2}=${userResult}`);
+            const url = `api.php?pheptinh=${pheptinh}&correct=${correct}`;
+
+            // Send the GET request to the server
+            fetch(url)
+                .then(response => response.text())
+                .then(data => {
+                    console.log(data); // You can handle the server's response here
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+        }
+
+        // Function to show a message and auto-hide it with a fade-out effect
+        function showMessage(message, className, autoHide = true) {
+            const messageElement = document.getElementById('message');
+            messageElement.textContent = message;
+            messageElement.classList.remove('message-correct', 'message-wrong');
+            messageElement.classList.add(className);
+
+            if (autoHide) {
+                setTimeout(function () {
+                    messageElement.classList.add('fade-out');
+                    setTimeout(function () {
+                        messageElement.textContent = '';
+                        messageElement.classList.remove(className, 'fade-out');
+                    }, 500); // Hide after 0.5 seconds (fade-out duration)
+                }, 1500); // Show for 2 seconds before auto-hiding
+            }
+        }
+
+        // Execute a function when the user presses a key on the keyboard
+        document.getElementById('result').addEventListener("keypress", function(event) {
+        // If the user presses the "Enter" key on the keyboard
+        if (event.key === "Enter") {
+            // Cancel the default action, if needed
+            event.preventDefault();
+            // Trigger the button element with a click
+            document.getElementById('checkButton').click();
+        }
+        });
+
+        // Event listener for the Check button
+        document.getElementById('checkButton').addEventListener('click', function () {
+            const resultInput = document.getElementById('result');
+            const userResult = parseInt(resultInput.value);
+            const expectedAnswer = operator === '+' ? number1 + number2 : number1 - number2;
+            let correctness = 'WRONG';
+
+            if (userResult === expectedAnswer) {
+                showMessage('Bạn đã chính xác', 'message-correct');
+                correctness = 'RIGHT';
+                countRight ++;
+            } else {
+                showMessage('Chưa đúng rồi', 'message-wrong');
+                countWrong ++;
+            }
+
+            updateCount();
+
+            // Clear the input when the answer is wrong (without generating a new question)
+            resultInput.value = '';
+
+            resultInput.focus();
+
+            // Send the result and correctness to the server for both correct and wrong answers
+            sendResultToServer(number1, number2, operator, userResult, correctness);
+
+            if (correctness == 'RIGHT') {
+                // Generate a new question when the answer is correct
+                generateQuestion();
+            }
+        });
+
+        // Initial question generation
+        generateQuestion();
+    </script>
+</body>
+</html>
